@@ -117,6 +117,34 @@ function drupalgap_add_js() {
 }
 
 /**
+ *
+ */
+function drupalgap_alert() {
+  try {
+    var message = '';
+    var alertCallback = null;
+    var title = 'Alert';
+    var buttonName = 'OK';
+    if (arguments[0]) { message = arguments[0]; }
+    if (arguments[1]) { alertCallback = arguments[1]; }
+    if (arguments[2]) { title = arguments[2]; }
+    if (arguments[3]) { buttonName = arguments[3]; }
+    if (typeof cordova !== 'undefined') {
+      navigator.notification.alert(message, alertCallback, title, buttonName);
+    }
+    else {
+      alert(message);
+      if (alertCallback) {
+        alertCallback();
+      }
+    }
+  }
+  catch (error) {
+    alert(' - ' + error);
+  }
+}
+
+/**
  * Rounds up all blocks defined by hook_block_info and places them in the
  * drupalgap.blocks array.
  */
@@ -215,11 +243,13 @@ function drupalgap_changePage(path) {
  * @returns A string indicating the type of connection according to PhoneGap.
  */
 function drupalgap_check_connection() {
+  
+  var result = '';
+  if (typeof cordova !== 'undefined') {
     // TODO - Uncomment and use this line once cordova 2.3 is released
     // instead of the navigator.network.connection.type variable.
     //var networkState = navigator.connection.type;
     var networkState = navigator.network.connection.type;
-
     var states = {};
     states[Connection.UNKNOWN]  = 'Unknown connection';
     states[Connection.ETHERNET] = 'Ethernet connection';
@@ -228,92 +258,101 @@ function drupalgap_check_connection() {
     states[Connection.CELL_3G]  = 'Cell 3G connection';
     states[Connection.CELL_4G]  = 'Cell 4G connection';
     states[Connection.NONE]     = 'No network connection';
-    
-    if (states[networkState] == 'No network connection') {
-    	drupalgap.online = false;
-    }
-    else {
-    	drupalgap.online = true;
-    }
-
-    return states[networkState];
+    result = states[networkState];
+  }
+  else {
+    // If we don't have Cordova to detect a connect, let's just assume the
+    // device has a connection. Anyone know how to detect a connection with
+    // javascript, jQuery or jQuerymobile?
+    result = 'Ethernet connection';
+  }
+  if (result == 'No network connection') {
+    drupalgap.online = false;
+  }
+  else {
+    drupalgap.online = true;
+  }
 }
 
 /**
- * Implements PhoneGap's deviceready().
+ * The device is ready, let's go!
  */
 function drupalgap_deviceready() {
-  // PhoneGap is loaded and it is now safe for DrupalGap to start...
-  // Load up settings.
-  drupalgap_settings_load();
-  // Load up includes.
-  drupalgap_includes_load();
-	// Load up modules.
-	drupalgap_modules_load();
-	// Load up the theme.
-	drupalgap_theme_load();
-	// Load up blocks.
-	drupalgap_blocks_load();
-	// Initialize menu links.
-	menu_router_build();
-	// Initialize menus.
-	drupalgap_menus_load();
-	// Initialize the theme registry.
-	drupalgap_theme_registry_build();
-	// Verify site path is set.
-	if (!drupalgap.settings.site_path || drupalgap.settings.site_path == '') {
-		navigator.notification.alert(
-		    'No site path to Drupal set in the app/settings.js file!',
-		    function(){},
-		    'Error',
-		    'OK'
-		);
-		return false;
-	}
-	// Check device connection. If the device is offline, warn the user and then
-	// go to the offline page.
-	drupalgap_check_connection();
-	if (!drupalgap.online) {
-		module_invoke_all('device_offine');
-		navigator.notification.alert(
-		    'No connection found!',
-		    function(){ drupalgap_goto('offline'); },
-		    'Offline',
-		    'OK'
-		);
-		return false;
-	}
-	else {
-	  
-	  // Device is online, let's call implementations of hook_device_online().
-		module_invoke_all('device_online');
-
-		if (module_invoke_continue) {
-			
-			// Device is online, let's make a call to the
-			// DrupalGap System Connect Service Resource
-			drupalgap.services.drupalgap_system.connect.call({
-				'success':function(result){
-				  // Call all hook_device_connected implementations then go to
-				  // the front page.
-					module_invoke_all('device_connected');
-					drupalgap_goto('');
-				},
-				'error':function(jqXHR, textStatus, errorThrown) {
-					if (errorThrown == 'Not Found') {
-						navigator.notification.alert(
-						    'Review DrupalGap Troubleshooting Topics!',
-						    function(){
-						      // TODO - Offer some helpful tips if the user gets stuck here!
-						    },
-						    'Unable to Connect to Drupal',
-						    'OK'
-						);
-					}
-				}
-			});
-		}
-	}
+  try {
+    // Load up settings.
+    if (!drupalgap_settings_load()) { return false; }
+    // Load up includes.
+    drupalgap_includes_load();
+    // Load up modules.
+    drupalgap_modules_load();
+    // Load up the theme.
+    drupalgap_theme_load();
+    // Load up blocks.
+    drupalgap_blocks_load();
+    // Initialize menu links.
+    menu_router_build();
+    // Initialize menus.
+    drupalgap_menus_load();
+    // Initialize the theme registry.
+    drupalgap_theme_registry_build();
+    // Verify site path is set.
+    if (!drupalgap.settings.site_path || drupalgap.settings.site_path == '') {
+      drupalgap_alert(
+        'No site path to Drupal set in the app/settings.js file!',
+        null,
+        'Error',
+        'OK'
+      );
+      return false;
+    }
+    // Check device connection. If the device is offline, warn the user and then
+    // go to the offline page.
+    drupalgap_check_connection();
+    if (!drupalgap.online) {
+      module_invoke_all('device_offine');
+      drupalgap_alert(
+        'No connection found!',
+        function(){ drupalgap_goto('offline'); },
+        'Offline',
+        'OK'
+      );
+      return false;
+    }
+    else {
+      
+      // Device is online, let's call implementations of hook_device_online().
+      module_invoke_all('device_online');
+  
+      if (module_invoke_continue) {
+        
+        // Device is online, let's make a call to the
+        // DrupalGap System Connect Service Resource
+        drupalgap.services.drupalgap_system.connect.call({
+          'success':function(result){
+            // Call all hook_device_connected implementations then go to
+            // the front page.
+            module_invoke_all('device_connected');
+            drupalgap_goto('');
+          },
+          'error':function(jqXHR, textStatus, errorThrown) {
+            if (errorThrown == 'Not Found') {
+              navigator.notification.alert(
+                  'Review DrupalGap Troubleshooting Topics!',
+                  function(){
+                    // TODO - Offer some helpful tips if the user gets stuck here!
+                  },
+                  'Unable to Connect to Drupal',
+                  'OK'
+              );
+            }
+          }
+        });
+      }
+    }
+  }
+  catch (error) {
+    alert('drupalgap_deviceready - ' + error);
+  }
 }
 
 /**
@@ -889,17 +928,20 @@ function drupalgap_set_title(title) {
 }
 
 /**
- * Loads the settings specified in app/settings.js into the app.
+ * Loads the settings specified in app/settings.js into the app. Returns false
+ * if the load fails, true if it succeeds.
  */
 function drupalgap_settings_load() {
   try {
-    settings_file_path = 'app/settings.js';
+    var result = false;
+    var settings_file_path = 'app/settings.js';
     jQuery.ajax({
       async:false,
       type:'GET',
       url:settings_file_path,
       data:null,
       success:function(){
+        result = true;
         if (drupalgap.settings.debug) {
           // Set the title to the settings title.
           drupalgap_set_title(drupalgap.settings.title);
@@ -907,7 +949,7 @@ function drupalgap_settings_load() {
       },
       dataType:'script',
       error: function(xhr, textStatus, errorThrown) {
-        navigator.notification.alert(
+        drupalgap_alert(
           'Failed to load the settings.js file in the app folder!',
           function(){},
           'Error',
@@ -915,6 +957,7 @@ function drupalgap_settings_load() {
         );
       }
     });
+    return result;
   }
   catch(error) {
     alert('drupalgap_settings_load - ' + error);
@@ -986,7 +1029,20 @@ function drupalgap_theme_registry_build() {
  * PhoneGap 'deviceready' event listener to drupalgap_deviceready().
  */
 function drupalgap_onload() {
-	document.addEventListener("deviceready", drupalgap_deviceready, false);
+  try {
+    // If we're using Cordova, then let's set the deviceready listener. Otherwise,
+    // it must be a jQM only run, so we'll just call drupalgap_deviceready
+    // manually.
+    if (typeof cordova !== 'undefined') {
+      document.addEventListener("deviceready", drupalgap_deviceready, false);
+    }
+    else {
+      drupalgap_deviceready();
+    }
+  }
+  catch (error) {
+    alert('drupalgap_onload - ' + error);
+  }
 }
 
 /*
