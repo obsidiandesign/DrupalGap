@@ -159,3 +159,14 @@ function hook_deviceready() {
 
 // TODO - list all other core hooks here.
 
+function hook_mvc_model() {
+  var models = {};
+  return models;
+}
+
+function hook_mvc_view() {
+}
+
+function hook_mvc_controller() {
+}
+
