@@ -259,7 +259,7 @@ function drupalgap_form_load(form_id) {
     
     var form = false;
     
-    // The form's call back function will be equal to the form id.
+    // The form's submit call back function will be equal to the form id.
     var function_name = form_id;
     if (eval('typeof ' + function_name) == 'function') {
       
@@ -288,12 +288,9 @@ function drupalgap_form_load(form_id) {
       // Give modules an opportunity to alter the form.
       //module_invoke_all('form_alter', form, drupalgap.form_state, form_id);
       module_invoke_all('form_alter', form, null, form_id);
-      
-      // Set drupalgap.form equal to the form.
-      //drupalgap.form = form;
     }
     else {
-      alert('drupalgap_form_load - no callback function (' + function_name + ') available for form');
+      alert('drupalgap_form_load - no submit callback function (' + function_name + ') available for form');
     }
     return form;
   }
