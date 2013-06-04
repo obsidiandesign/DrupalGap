@@ -37,6 +37,7 @@ var drupalgap = {
       {'name':'common'},
       {'name':'menu'},
       {'name':'module'},
+      {'name':'mvc'},
       {'name':'theme'},
   ],
   /**
@@ -74,7 +75,6 @@ var drupalgap = {
   'theme_path':'',
   'themes':[],
   'theme_registry':{},
-  'views':[],
   'views_datasource':{},
 }; // <!-- drupalgap -->
 
@@ -148,6 +148,29 @@ function drupalgap_blocks_load() {
   }
 }
 
+/**
+ * Loads up all necessary assets to make DrupalGap ready.
+ */
+function drupalgap_bootstrap() {
+  // Load up settings.
+  drupalgap_settings_load();
+  // Load up includes.
+  drupalgap_includes_load();
+  // Load up modules.
+  drupalgap_modules_load();
+  // Load up MVCs.
+  drupalgap_mvc_init();
+  // Load up the theme.
+  drupalgap_theme_load();
+  // Load up blocks.
+  drupalgap_blocks_load();
+  // Initialize menu links.
+  menu_router_build();
+  // Initialize menus.
+  drupalgap_menus_load();
+  // Initialize the theme registry.
+  drupalgap_theme_registry_build();
+}
 
 /**
  * Takes option set 2, grabs the success/error callback(s), if any,
@@ -233,25 +256,10 @@ function drupalgap_check_connection() {
  * Implements PhoneGap's deviceready().
  */
 function drupalgap_deviceready() {
+  
   // PhoneGap is loaded and it is now safe for DrupalGap to start...
-  // Load up settings.
-  drupalgap_settings_load();
-  // Load up includes.
-  drupalgap_includes_load();
-  // Load up modules.
-  drupalgap_modules_load();
-  // Load up MVCs.
-  drupalgap_mvc_load();
-  // Load up the theme.
-  drupalgap_theme_load();
-  // Load up blocks.
-  drupalgap_blocks_load();
-  // Initialize menu links.
-  menu_router_build();
-  // Initialize menus.
-  drupalgap_menus_load();
-  // Initialize the theme registry.
-  drupalgap_theme_registry_build();
+  drupalgap_bootstrap();
+  
   // Verify site path is set.
   if (!drupalgap.settings.site_path || drupalgap.settings.site_path == '') {
     navigator.notification.alert(
@@ -765,51 +773,6 @@ function drupalgap_modules_load() {
     module_invoke_all('install');
   }
 }
-
-/**
- *
- */
-function drupalgap_mvc_load() {
-  try {
-    if (drupalgap.settings.debug) {
-      console.log('drupalgap_mvc_load()');
-      console.log(JSON.stringify(arguments));
-    }
-    alert('drupalgap_mvc_load - start');
-    // Models
-    var modules = module_implements('mvc_model');
-    for (var i = 0; i < modules.length; i++) {
-      var module = modules[i];
-      var model = module_invoke(module, 'mvc_model');
-      if (model) {
-        console.log(JSON.stringify(drupalgap.mvc.models));
-        console.log(JSON.stringify(drupalgap.mvc.models[module]));
-        /*if (typeof drupalgap.mvc.models[module] === 'undefined') {
-          drupalgap.mvc.models[module] = [];
-        }*/
-        if (!eval('drupalgap.mvc.models.' + module)) {
-          alert('creating ' + module);
-          eval('drupalgap.mvc.models.' + module + ' = {};');
-        }
-        console.log(JSON.stringify(drupalgap.mvc.models));
-        //drupalgap.mvc.models[module].push(model);
-        //drupalgap.mvc.models[module].model = $.extend(true, {}, model);
-        //drupalgap.mvc.models[module].push(jQuery.extend({}, model));
-        eval('drupalgap.mvc.models.' + module + '.funk = {"you":"two"};');
-        console.log(JSON.stringify(drupalgap.mvc.models));
-        console.log(JSON.stringify(drupalgap.mvc.models[module]));
-      }
-    }
-    /*var views = module_invoke_all('mvc_view');
-    var controllers = module_invoke_all('mvc_controller');*/
-    console.log(JSON.stringify(drupalgap.mvc));
-    alert('drupalgap_mvc_load');
-  }
-  catch (error) {
-    alert('drupalgap_mvc_load - ' + error);
-  }
-}
-
 
 /**
  * Given a router path (and optional path, defaults to current drupalgap.path if
